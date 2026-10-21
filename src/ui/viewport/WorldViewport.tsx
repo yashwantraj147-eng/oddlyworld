@@ -7,6 +7,8 @@ import { ContraptionPart, ContraptionPartType } from '../../core/physics/Contrap
 import { ToolMode } from '../components/ToolPalette';
 import { globalAudio } from '../../core/audio/ProceduralAudioEngine';
 
+import { SimulationEngine } from '../../core/engine/SimulationEngine';
+
 interface WorldViewportProps {
   world: ToyboxWorld;
   creatures: CreatureEntity[];
@@ -20,6 +22,7 @@ interface WorldViewportProps {
   onSculptTerrainAt: (pos: THREE.Vector3, mode: 'raise' | 'lower' | 'smooth') => void;
   onDeleteEntity: (type: 'creature' | 'contraption', id: string) => void;
   rendererRef: React.MutableRefObject<WorldRenderer | null>;
+  simEngineRef?: React.MutableRefObject<SimulationEngine | null>;
 }
 
 export const WorldViewport: React.FC<WorldViewportProps> = ({
@@ -35,11 +38,20 @@ export const WorldViewport: React.FC<WorldViewportProps> = ({
   onSculptTerrainAt,
   onDeleteEntity,
   rendererRef,
+  simEngineRef,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const stateRef = useRef({ world, creatures, contraptions });
+  stateRef.current = { world, creatures, contraptions };
 
   useEffect(() => {
     if (!containerRef.current) return;
+
+    // Remove any leftover canvas elements from previous renders
+    while (containerRef.current.firstChild) {
+      containerRef.current.removeChild(containerRef.current.firstChild);
+    }
+
     const renderer = new WorldRenderer(containerRef.current, world);
     rendererRef.current = renderer;
 
@@ -48,9 +60,12 @@ export const WorldViewport: React.FC<WorldViewportProps> = ({
 
     const loop = () => {
       clock += 0.016;
-      renderer.syncCreatures(creatures, clock);
-      renderer.syncContraptions(contraptions, clock);
-      renderer.updateEnvironment(world, clock);
+      const { world: curWorld, creatures: curCreatures, contraptions: curContraptions } = stateRef.current;
+      const liveCreatures = simEngineRef?.current ? simEngineRef.current.creatures : curCreatures;
+      const liveContraptions = simEngineRef?.current ? simEngineRef.current.contraptionParts : curContraptions;
+      renderer.syncCreatures(liveCreatures, clock);
+      renderer.syncContraptions(liveContraptions, clock);
+      renderer.updateEnvironment(curWorld, clock);
       renderer.render(0.016);
       animId = requestAnimationFrame(loop);
     };

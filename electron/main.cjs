@@ -3,6 +3,9 @@ const path = require('path');
 
 let mainWindow = null;
 
+// Allow local file access for bundled offline scripts
+app.commandLine.appendSwitch('allow-file-access-from-files');
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1440,
@@ -17,7 +20,8 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.cjs'),
       nodeIntegration: false,
       contextIsolation: true,
-      webSecurity: true,
+      webSecurity: false, // Essential for loading local dist/assets via file:// without CORS null blockage
+      allowRunningInsecureContent: true,
     },
     show: false,
   });
@@ -26,12 +30,24 @@ function createWindow() {
   const isDev = process.argv.includes('--dev');
 
   if (isDev) {
-    mainWindow.loadURL('http://localhost:5173').catch(() => {
-      mainWindow.loadFile(prodPath);
+    mainWindow.loadURL('http://localhost:5174').catch(() => {
+      mainWindow.loadURL('http://localhost:5173').catch(() => {
+        mainWindow.loadFile(prodPath);
+      });
     });
   } else {
     mainWindow.loadFile(prodPath);
   }
+
+  mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+    if (level >= 2) { // warnings and errors
+      console.log(`[Renderer Log] (${level}) ${message} (${sourceId}:${line})`);
+    }
+  });
+
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+    console.error(`[Renderer Load Error] ${errorCode}: ${errorDescription} (${validatedURL})`);
+  });
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();

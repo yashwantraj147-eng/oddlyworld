@@ -51,19 +51,27 @@ export class WorldRenderer {
     this.scene.background = new THREE.Color(0x0f172a);
     this.scene.fog = new THREE.FogExp2(0x0f172a, 0.015);
 
-    const width = container.clientWidth || window.innerWidth;
-    const height = container.clientHeight || window.innerHeight;
+    const width = container.clientWidth || window.innerWidth || 1280;
+    const height = container.clientHeight || window.innerHeight || 800;
 
     this.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 200);
     this.camera.position.set(18, 16, 18);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     this.renderer.setSize(width, height);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.1;
+
+    // Explicit style ensures canvas displays prominently and fills container
+    this.renderer.domElement.style.display = 'block';
+    this.renderer.domElement.style.position = 'absolute';
+    this.renderer.domElement.style.top = '0';
+    this.renderer.domElement.style.left = '0';
+    this.renderer.domElement.style.width = '100%';
+    this.renderer.domElement.style.height = '100%';
 
     container.appendChild(this.renderer.domElement);
 
@@ -356,9 +364,8 @@ export class WorldRenderer {
 
   private onResize = () => {
     const container = this.renderer.domElement.parentElement;
-    if (!container) return;
-    const w = container.clientWidth;
-    const h = container.clientHeight;
+    const w = (container && container.clientWidth) || window.innerWidth || 1280;
+    const h = (container && container.clientHeight) || window.innerHeight || 800;
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(w, h);
@@ -367,6 +374,9 @@ export class WorldRenderer {
   public dispose(): void {
     window.removeEventListener('resize', this.onResize);
     this.cameraController.dispose();
+    if (this.renderer.domElement.parentElement) {
+      this.renderer.domElement.parentElement.removeChild(this.renderer.domElement);
+    }
     this.renderer.dispose();
   }
 }

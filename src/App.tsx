@@ -93,13 +93,19 @@ export function App() {
 
     let animId: number;
     let lastTime = performance.now();
+    let lastUiTick = 0;
 
     const loop = (now: number) => {
       const dt = Math.min((now - lastTime) / 1000, 0.1);
       lastTime = now;
 
       engine.update(dt);
-      setTick(t => (t + 1) % 1000);
+
+      // Throttle React state re-render tick to ~4 times per second (250ms) to avoid churning React
+      if (now - lastUiTick > 250) {
+        lastUiTick = now;
+        setTick(t => (t + 1) % 1000);
+      }
       animId = requestAnimationFrame(loop);
     };
     animId = requestAnimationFrame(loop);
@@ -424,6 +430,7 @@ export function App() {
         onSculptTerrainAt={handleSculptTerrainAt}
         onDeleteEntity={handleDeleteEntity}
         rendererRef={rendererRef}
+        simEngineRef={simEngineRef}
       />
 
       {/* Top Header Navigation */}
